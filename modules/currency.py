@@ -1,16 +1,41 @@
-import requests, json
+import requests, json, os, time
 
-def get_currency():
 
-    resp = requests.get("https://openexchangerates.org/api/latest.json?app_id=APP_ID&base=USD")
-    return resp.json()
+class Currency:
+	def get(self):
+		data = self.get_data()
+		return {
+			'timestamp': data['timestamp'],
+			'rates': {
+				'BRL': data['rates']['BRL']
+			}
+		}
 
-    # print(resp.text)
+	def update_currency(self):
+		url = "https://openexchangerates.org/api/latest.json?app_id=" + os.environ['OPENEXCHANGERATES_APP_ID'] + "&base=USD"
+		resp = requests.get(url)
+		respJson = resp.json()
+		f = open('cache.json', 'w')
+		f.write(json.dumps(respJson))
+		return respJson
 
-    # f = open('USD-BRL.json', 'w')
-    # f.write(json.dumps(
-    #     {
-    #         'timestamp': respJson['timestamp'],
-    #         'rate': respJson['rates']['BRL']
-    #     }
-    # ));
+
+	def get_data(self):
+		update = False
+
+		if os.path.isfile('cache.json')==False:
+			update = True
+		else:
+			file_ts = os.stat('cache.json').st_mtime
+			now_ts = time.time()
+
+			if now_ts-file_ts > float(os.environ['API_CACHE_TIMEOUT_MINS'])*60:
+				update = True
+
+		if(update):
+			return self.update_currency()
+		else:
+			with open('cache.json') as data_file:
+				cache = json.load(data_file)
+
+			return cache
